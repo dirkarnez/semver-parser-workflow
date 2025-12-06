@@ -1,0 +1,48 @@
+name: Tag creation
+
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+    contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Get the version
+        id: version
+        run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - uses: apexskier/github-semver-parse@v1
+        id: semver
+        with:
+          version: ${{ steps.version.outputs.VERSION }}
+
+      - run: |
+          echo -e "major=${{ steps.semver.outputs.major }}\n" && \
+          echo -e "minor=${{ steps.semver.outputs.minor }}\n" && \
+          echo -e "patch=${{ steps.semver.outputs.patch }}\n" && \
+          echo -e "prerelease=${{ steps.semver.outputs.prerelease }}\n" && \
+          echo -e "version=${{ steps.semver.outputs.version }}"
+
+      # - name: Release
+      #   uses: softprops/action-gh-release@v1
+      #   env:
+      #     run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+      #     # must use a separate token, not the built-in one to trigger subsequent builds
+      #     GITHUB_TOKEN: ${{ secrets.RELEASE_GH_TOKEN }}
+      #   with:
+      #     tag_name: ${{ steps.version.outputs.VERSION }}
+      #     prerelease: ${{ !!steps.semver.outputs.prerelease }}
